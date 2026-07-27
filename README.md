@@ -1,1 +1,1 @@
-# SyuhasuPinto-OfficialProject
+# 周波数ピント (Shuuhasuu Pinto)
