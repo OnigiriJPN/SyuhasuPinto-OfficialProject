@@ -1,1 +1,389 @@
+<!DOCTYPE html>
+<html lang="ja" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="pageTitle">frequnoise - 周波数ピント (Pro)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { extend: { colors: { darkbg: '#0f172a', cardbg: '#1e293b' } } }
+        }
+    </script>
+</head>
+<body class="bg-darkbg text-slate-100 min-h-screen flex flex-col items-center p-4 selection:bg-cyan-500 selection:text-white">
 
+    <header class="w-full max-w-3xl flex justify-between items-center py-4 px-2 border-b border-slate-800">
+        <h1 class="text-2xl font-extrabold tracking-wider bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 bg-clip-text text-transparent">
+            ⚡ frequnoise <span class="text-sm font-normal text-slate-400" data-i18n="appTitle">/ 周波数ピント Pro</span>
+        </h1>
+        <select id="langSelect" onchange="switchLanguageParam(this.value)" class="bg-slate-800 border border-slate-700 text-xs rounded px-2 py-1 focus:outline-none focus:border-cyan-500">
+            <option value="ja">日本語</option>
+            <option value="en">English</option>
+        </select>
+    </header>
+
+    <main class="w-full max-w-3xl my-6 flex flex-col gap-6">
+        
+        <!-- モードセレクター -->
+        <div class="bg-cardbg p-2 rounded-xl border border-slate-800 grid grid-cols-3 gap-2 text-center text-xs sm:text-sm font-medium shadow-lg">
+            <button onclick="setUIMode('easy')" id="modeEasy" class="py-2 px-3 rounded-lg transition-all bg-cyan-600 text-white shadow-md" data-i18n="modeEasy">使いやすさ重視</button>
+            <button onclick="setUIMode('modern')" id="modeModern" class="py-2 px-3 rounded-lg transition-all text-slate-400 hover:text-white hover:bg-slate-800" data-i18n="modeModern">モダン重視</button>
+            <button onclick="setUIMode('advanced')" id="modeAdvanced" class="py-2 px-3 rounded-lg transition-all text-slate-400 hover:text-white hover:bg-slate-800" data-i18n="modeAdvanced">高度な機能 (.fres)</button>
+        </div>
+
+        <div class="bg-cardbg p-6 rounded-2xl border border-slate-800 shadow-2xl backdrop-blur-md relative overflow-hidden">
+            
+            <div id="visualizerContainer" class="hidden mb-6 bg-black rounded-xl border border-slate-700 p-2 shadow-inner relative">
+                <span class="absolute top-2 left-3 text-[10px] text-cyan-500 font-mono">OSCILLOSCOPE / FREQ-VISUALIZER</span>
+                <canvas id="oscilloscope" class="w-full h-32 rounded-lg"></canvas>
+            </div>
+
+            <div id="presetSection" class="mb-5 p-4 bg-slate-900/50 rounded-xl border border-dashed border-slate-700">
+                <label class="block text-xs font-semibold text-cyan-400 mb-2" data-i18n="presetLabel">ターゲットプリセット</label>
+                <select id="presetSelect" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-cyan-500 outline-none transition-all">
+                    <option value="none" data-i18n="presetCustom">-- カスタム --</option>
+                    <option value="spider_jump" data-i18n="presetSpiderJump">ハエトリグモ (800 Hz / サイン波)</option>
+                    <option value="spider_huntsman" data-i18n="presetSpiderHuntsman">アシダカグモ (150 Hz / ノコギリ波)</option>
+                    <option value="roach" data-i18n="presetRoach">ゴキブリ (25 kHz 超音波 / 矩形波)</option>
+                    <option value="mosquito" data-i18n="presetMosquito">蚊 (17 kHz 飛行音模倣 / サイン波)</option>
+                </select>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+                <div class="col-span-1 md:col-span-2 flex gap-2">
+                    <div class="flex-1">
+                        <label class="block text-xs font-semibold text-slate-400 mb-1" data-i18n="valLabel">基本数値</label>
+                        <input type="number" id="valueInput" value="800" step="any" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-lg font-mono focus:ring-2 focus:ring-cyan-500 outline-none">
+                    </div>
+                    <div class="w-1/3">
+                        <label class="block text-xs font-semibold text-slate-400 mb-1" data-i18n="unitLabel">単位</label>
+                        <select id="unitSelect" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-cyan-500 outline-none">
+                            <option value="Hz">Hz</option>
+                            <option value="kHz">kHz</option>
+                            <option value="MHz">MHz</option>
+                            <option value="GHz">GHz</option>
+                            <option value="W/m2">W/m2</option>
+                            <option value="W/cm2">W/cm2</option>
+                            <option value="Pa">Pa</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="audioControls" class="col-span-1 hidden flex-col justify-between">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1" data-i18n="waveLabel">波形 (Waveform)</label>
+                        <select id="waveSelect" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <option value="sine">Sine</option>
+                            <option value="square">Square</option>
+                            <option value="sawtooth">Sawtooth</option>
+                            <option value="triangle">Triangle</option>
+                        </select>
+                    </div>
+                    <div class="mt-2">
+                        <label class="block text-xs font-semibold text-slate-400 mb-1 flex justify-between">
+                            <span data-i18n="volLabel">ボリューム</span> <span id="volDisplay" class="text-cyan-400">50%</span>
+                        </label>
+                        <input type="range" id="volSlider" min="0" max="100" value="50" class="w-full accent-cyan-500 cursor-pointer">
+                    </div>
+                </div>
+            </div>
+
+            <div id="advancedSection" class="hidden mb-5 p-4 bg-slate-900 rounded-xl border border-purple-500/30">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-purple-400 mb-2" data-i18n="sweepLabel">スイープジェネレーター (Sweep)</label>
+                        <div class="flex gap-2 items-center">
+                            <input type="number" id="sweepTarget" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm font-mono text-purple-200">
+                            <span class="text-slate-500 text-xs whitespace-nowrap" data-i18n="sweepTo">Hzへ</span>
+                            <input type="number" id="sweepTime" value="5" class="w-16 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm font-mono text-purple-200">
+                            <span class="text-slate-500 text-xs whitespace-nowrap" data-i18n="sweepIn">秒で</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-purple-400 mb-2" data-i18n="fresLabel">.fres 設定ファイル</label>
+                        <div class="flex gap-2">
+                            <input type="file" id="fresFileInput" accept=".fres" class="hidden" onchange="importFres(event)">
+                            <button onclick="document.getElementById('fresFileInput').click()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-2 rounded-lg border border-slate-600" data-i18n="btnImport">読込</button>
+                            <button onclick="exportFres()" class="flex-1 bg-purple-600 hover:bg-purple-500 text-xs py-2 rounded-lg font-bold shadow-lg text-white" data-i18n="btnExport">書出</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button id="playBtn" class="w-full mt-2 bg-gradient-to-r from-cyan-600 to-blue-700 hover:from-cyan-500 hover:to-blue-600 text-white font-bold py-4 px-4 rounded-xl shadow-lg shadow-cyan-500/30 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 text-lg tracking-widest">
+                <span id="playIcon">▶</span> <span id="playText" data-i18n="btnGenerate">GENERATE (出力開始)</span>
+            </button>
+        </div>
+    </main>
+
+<script>
+// --- 本格仕様の Fetch API による i18n 処理 ---
+let trans = {}; // グローバルな翻訳オブジェクト
+let isPlaying = false;
+let currentMode = 'easy';
+
+// URLパラメータ取得
+function getLangFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('hl') || 'ja';
+}
+
+// JSONフェッチとUI適用
+async function loadTranslations(lang) {
+    try {
+        const res = await fetch(`/locales/${lang}.json`);
+        if (!res.ok) throw new Error("Translation file fetch failed");
+        trans = await res.json();
+        
+        document.getElementById('langSelect').value = lang;
+        document.documentElement.lang = lang; // htmlタグのlang属性も更新
+        
+        // ページタイトルの更新
+        if(trans.pageTitle) document.title = trans.pageTitle;
+
+        // data-i18n 属性を持つすべての要素をループ処理してテキストを置換
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (trans[key]) {
+                el.innerText = trans[key];
+            }
+        });
+
+        // 再生ボタンのテキストは現在の再生状態によって上書き
+        const playTextEl = document.getElementById('playText');
+        playTextEl.innerText = isPlaying ? trans.btnStop : trans.btnGenerate;
+
+    } catch (e) {
+        console.error("Localization error:", e);
+    }
+}
+
+// 言語切替時のイベント（URLを書き換えてフェッチ）
+function switchLanguageParam(lang) {
+    const url = new URL(window.location);
+    url.searchParams.set('hl', lang);
+    window.history.pushState({}, '', url);
+    loadTranslations(lang);
+}
+
+// 初期ロード時の実行
+loadTranslations(getLangFromUrl());
+
+
+// --- UI & モード制御 ---
+function setUIMode(mode) {
+    currentMode = mode;
+    const btns = {
+        easy: document.getElementById('modeEasy'),
+        modern: document.getElementById('modeModern'),
+        advanced: document.getElementById('modeAdvanced')
+    };
+    const sections = {
+        visualizer: document.getElementById('visualizerContainer'),
+        audioControls: document.getElementById('audioControls'),
+        advanced: document.getElementById('advancedSection')
+    };
+
+    Object.values(btns).forEach(btn => btn.className = "py-2 px-3 rounded-lg transition-all text-slate-400 hover:text-white hover:bg-slate-800");
+
+    if (mode === 'easy') {
+        btns.easy.className = "py-2 px-3 rounded-lg transition-all bg-cyan-600 text-white shadow-md";
+        sections.visualizer.classList.add('hidden');
+        sections.audioControls.classList.add('hidden');
+        sections.advanced.classList.add('hidden');
+    } else if (mode === 'modern') {
+        btns.modern.className = "py-2 px-3 rounded-lg transition-all bg-indigo-600 text-white shadow-md";
+        sections.visualizer.classList.remove('hidden');
+        sections.audioControls.classList.remove('hidden');
+        sections.audioControls.classList.add('flex');
+        sections.advanced.classList.add('hidden');
+    } else if (mode === 'advanced') {
+        btns.advanced.className = "py-2 px-3 rounded-lg transition-all bg-purple-600 text-white shadow-md";
+        sections.visualizer.classList.remove('hidden');
+        sections.audioControls.classList.remove('hidden');
+        sections.audioControls.classList.add('flex');
+        sections.advanced.classList.remove('hidden');
+    }
+}
+
+// --- オーディオエンジン (Web Audio API) ---
+let audioCtx, oscillator, gainNode, analyser, animationId;
+const playBtn = document.getElementById('playBtn');
+const playText = document.getElementById('playText');
+const playIcon = document.getElementById('playIcon');
+const volSlider = document.getElementById('volSlider');
+const volDisplay = document.getElementById('volDisplay');
+const canvas = document.getElementById('oscilloscope');
+const canvasCtx = canvas.getContext('2d');
+
+volSlider.addEventListener('input', (e) => {
+    volDisplay.innerText = `${e.target.value}%`;
+    if (gainNode) gainNode.gain.setValueAtTime(e.target.value / 100, audioCtx.currentTime);
+});
+
+function drawVisualizer() {
+    if (!isPlaying) return;
+    animationId = requestAnimationFrame(drawVisualizer);
+    
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    analyser.getByteTimeDomainData(dataArray);
+
+    canvasCtx.fillStyle = '#000';
+    canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+    canvasCtx.lineWidth = 2;
+    canvasCtx.strokeStyle = '#06b6d4'; 
+    canvasCtx.beginPath();
+
+    const sliceWidth = canvas.width * 1.0 / bufferLength;
+    let x = 0;
+    for (let i = 0; i < bufferLength; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = v * (canvas.height / 2);
+        if (i === 0) canvasCtx.moveTo(x, y);
+        else canvasCtx.lineTo(x, y);
+        x += sliceWidth;
+    }
+    canvasCtx.lineTo(canvas.width, canvas.height / 2);
+    canvasCtx.stroke();
+}
+
+playBtn.addEventListener('click', () => {
+    const val = parseFloat(document.getElementById('valueInput').value) || 0;
+    const unit = document.getElementById('unitSelect').value;
+    const waveType = document.getElementById('waveSelect').value;
+
+    if (['W/m2', 'W/cm2', 'Pa'].includes(unit)) {
+        alert(trans.alertMetric ? trans.alertMetric.replace('{unit}', unit) : `[${unit}] ${trans.alertMetric}`);
+        return;
+    }
+
+    let hz = val;
+    if (unit === 'kHz') hz *= 1e3;
+    if (unit === 'MHz') hz *= 1e6;
+    if (unit === 'GHz') hz *= 1e9;
+
+    if (hz > 24000) {
+        alert(trans.alertUltrasound || '超音波領域です。');
+        return;
+    }
+
+    if (isPlaying) {
+        oscillator.stop();
+        oscillator.disconnect();
+        cancelAnimationFrame(animationId);
+        canvasCtx.fillStyle = '#000';
+        canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        isPlaying = false;
+        playBtn.className = "w-full mt-2 bg-gradient-to-r from-cyan-600 to-blue-700 hover:from-cyan-500 hover:to-blue-600 text-white font-bold py-4 px-4 rounded-xl shadow-lg shadow-cyan-500/30 transition-all flex items-center justify-center gap-2 text-lg tracking-widest";
+        playIcon.innerText = "▶";
+        playText.innerText = trans.btnGenerate || "GENERATE";
+        return;
+    }
+
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    oscillator = audioCtx.createOscillator();
+    gainNode = audioCtx.createGain();
+    analyser = audioCtx.createAnalyser();
+
+    analyser.fftSize = 2048;
+    oscillator.type = waveType;
+    oscillator.frequency.setValueAtTime(hz, audioCtx.currentTime);
+    gainNode.gain.setValueAtTime(volSlider.value / 100, audioCtx.currentTime);
+
+    const sweepTarget = document.getElementById('sweepTarget').value;
+    const sweepTime = document.getElementById('sweepTime').value;
+    if (currentMode === 'advanced' && sweepTarget && sweepTime) {
+        const targetHz = parseFloat(sweepTarget);
+        const timeSec = parseFloat(sweepTime);
+        if (targetHz > 0 && timeSec > 0) {
+            oscillator.frequency.linearRampToValueAtTime(targetHz, audioCtx.currentTime + timeSec);
+        }
+    }
+
+    oscillator.connect(gainNode);
+    gainNode.connect(analyser);
+    analyser.connect(audioCtx.destination);
+
+    oscillator.start();
+    isPlaying = true;
+    
+    playBtn.className = "w-full mt-2 bg-gradient-to-r from-red-600 to-pink-700 hover:from-red-500 hover:to-pink-600 text-white font-bold py-4 px-4 rounded-xl shadow-lg shadow-red-500/30 transition-all flex items-center justify-center gap-2 text-lg tracking-widest animate-pulse";
+    playIcon.innerText = "■";
+    playText.innerText = trans.btnStop || "STOP";
+
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+    drawVisualizer();
+});
+
+const presets = {
+    spider_jump: { val: 800, unit: 'Hz', wave: 'sine' },
+    spider_huntsman: { val: 150, unit: 'Hz', wave: 'sawtooth' },
+    roach: { val: 25, unit: 'kHz', wave: 'square' },
+    mosquito: { val: 17, unit: 'kHz', wave: 'sine' }
+};
+
+document.getElementById('presetSelect').addEventListener('change', (e) => {
+    const key = e.target.value;
+    if (presets[key]) {
+        document.getElementById('valueInput').value = presets[key].val;
+        document.getElementById('unitSelect').value = presets[key].unit;
+        document.getElementById('waveSelect').value = presets[key].wave;
+    }
+});
+
+function exportFres() {
+    const data = {
+        format: "frequnoise_fres",
+        version: "2.0",
+        val: document.getElementById('valueInput').value,
+        unit: document.getElementById('unitSelect').value,
+        wave: document.getElementById('waveSelect').value,
+        vol: document.getElementById('volSlider').value,
+        sweepTarget: document.getElementById('sweepTarget').value,
+        sweepTime: document.getElementById('sweepTime').value
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `config_${Date.now()}.fres`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function importFres(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (data.format !== "frequnoise_fres") throw new Error("Format");
+            if(data.val) document.getElementById('valueInput').value = data.val;
+            if(data.unit) document.getElementById('unitSelect').value = data.unit;
+            if(data.wave) document.getElementById('waveSelect').value = data.wave;
+            if(data.vol) {
+                document.getElementById('volSlider').value = data.vol;
+                document.getElementById('volDisplay').innerText = data.vol + "%";
+            }
+            if(data.sweepTarget) document.getElementById('sweepTarget').value = data.sweepTarget;
+            if(data.sweepTime) document.getElementById('sweepTime').value = data.sweepTime;
+            alert(trans.alertFresSuccess || "成功！");
+        } catch (err) {
+            alert(trans.alertFresError || "エラー");
+        }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+}
+</script>
+
+</body>
+</html>
