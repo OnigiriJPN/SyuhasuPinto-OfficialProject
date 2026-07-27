@@ -167,7 +167,27 @@
 let trans = {}; // グローバルな翻訳オブジェクト
 let isPlaying = false;
 let currentMode = 'easy';
+document.addEventListener('DOMContentLoaded', () => {
+  const modal = document.getElementById('warningModal');
+  const acceptBtn = document.getElementById('acceptWarningBtn');
+  const STORAGE_KEY = 'frequnoise_warning_accepted';
 
+  // 初回チェック: localStorageにフラグがなければモーダルを表示
+  if (!localStorage.getItem(STORAGE_KEY)) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+
+  // 「理解して始める」ボタンが押された時の処理
+  acceptBtn.addEventListener('click', () => {
+    // フラグを保存
+    localStorage.setItem(STORAGE_KEY, 'true');
+    
+    // モーダルを非表示にする
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+  });
+});
 // URLパラメータ取得
 function getLangFromUrl() {
     const params = new URLSearchParams(window.location.search);
