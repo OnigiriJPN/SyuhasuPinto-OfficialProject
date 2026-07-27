@@ -374,8 +374,114 @@ function exportFres() {
     URL.revokeObjectURL(url);
 }
     // 非同期のダウンロードクリック時
+// --- 画面上の設定をそのままWAV化してダウンロード ---
 async function downloadWavFromUI() {
-    const
+    try{
+    // 1. 画面上の入力値をすべて動的に取得
+    const rawVal = parseFloat(document.getElementById('valueInput').value) || 0;
+    const unit = document.getElementById('unitSelect').value;
+    const waveType = document.getElementById('waveSelect').value;
+    const volPercent = parseFloat(document.getElementById('volSlider').value) || 50;
+    const duration = parseFloat(document.getElementById('wavDuration').value) || 5;
+
+    // 物理単位（W/m2など）が選択されている場合は警告を出してスキップ
+    if (['W/m2', 'W/cm2', 'Pa'].includes(unit)) {
+        alert("音響単位(Hz, kHz)を選択した状態でのみWAVダウンロードが可能です。");
+        return;
+    }
+
+    // 2. 単位を考慮して実際の Hz に変換
+    let startHz = rawVal;
+    if (unit === 'kHz') startHz *= 1e3;
+    if (unit === 'MHz') startHz *= 1e6;
+    if (unit === 'GHz') startHz *= 1e9;
+
+    const sampleRate = 44100;
+    const offlineCtx = new OfflineAudioContext(1, sampleRate * duration, sampleRate);
+
+    // 3. オシレーター＆ゲイン（音量）の構築
+    const osc = offlineCtx.createOscillator();
+    const gainNode = offlineCtx.createGain();
+
+    osc.type = waveType;
+    osc.frequency.setValueAtTime(startHz, 0);
+    gainNode.gain.setValueAtTime(volPercent / 100, 0);
+
+    // 4. スイープ設定が入力されていればWAV生成時にも反映
+    const sweepTargetInput = document.getElementById('sweepTarget').value;
+    const sweepTimeInput = document.getElementById('sweepTime').value;
+    if (sweepTargetInput && sweepTimeInput) {
+        const targetHz = parseFloat(sweepTargetInput);
+        const timeSec = parseFloat(sweepTimeInput);
+        if (targetHz > 0 && timeSec > 0) {
+            // 指定秒数にかけて周波数を直線変化させる
+            osc.frequency.linearRampToValueAtTime(targetHz, Math.min(timeSec, duration));
+        }
+    }
+
+    // ノード接続とレンダリング開始
+    osc.connect(gainNode);
+    gainNode.connect(offlineCtx.destination);
+    osc.start(0);
+    osc.stop(duration);
+
+    // 5. 非同期で一瞬でレンダリング（Offline rendering）
+    const renderedBuffer = await offlineCtx.startRendering();
+    const wavBlob = bufferToWav(renderedBuffer);
+    
+    // 6. ユーザーの指定条件を含めたファイル名でダウンロード
+    const filename = `frequnoise_${startHz}Hz_${waveType}_${duration}s.wav`;
+    const url = URL.createObjectURL(wavBlob);
+    const a = document.createElement('a');
+    
+    
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    }catch(er) {
+        alert("エラー: " + er.message);
+    }
+}
+
+// PCM WAVヘッダー構築用ヘルパー関数
+function bufferToWav(abuffer) {
+    const numOfChan = abuffer.numberOfChannels;
+    const length = abuffer.length * numOfChan * 2 + 44;
+    const buffer = new ArrayBuffer(length);
+    const view = new DataView(buffer);
+    let pos = 0, offset = 0, sample = 0;
+
+    function setUint16(data) { view.setUint16(pos, data, true); pos += 2; }
+    function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
+
+    setUint32(0x46464952); // "RIFF"
+    setUint32(length - 8);
+    setUint32(0x45564157); // "WAVE"
+    setUint32(0x20746d66); // "fmt "
+    setUint32(16);
+    setUint16(1);          // PCM
+    setUint16(numOfChan);
+    setUint32(abuffer.sampleRate);
+    setUint32(abuffer.sampleRate * 2 * numOfChan);
+    setUint16(numOfChan * 2);
+    setUint16(16);         // 16bit
+    setUint32(0x61746164); // "data"
+    setUint32(length - pos - 4);
+
+    const channels = [];
+    for (let i = 0; i < numOfChan; i++) channels.push(abuffer.getChannelData(i));
+
+    while (pos < length) {
+        for (let i = 0; i < numOfChan; i++) {
+            sample = Math.max(-1, Math.min(1, channels[i][offset]));
+            sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+            view.setInt16(pos, sample, true);
+            pos += 2;
+        }
+        offset++;
+    }
+    return new Blob([buffer], { type: 'audio/wav' });
 }
 function importFres(event) {
     const file = event.target.files[0];
