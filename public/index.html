@@ -133,7 +133,35 @@
             </button>
         </div>
     </main>
+<!-- 初回注意喚起モーダル (Tailwind CSS) -->
+<div id="warningModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/80 p-4 backdrop-blur-sm">
+  <div class="w-full max-w-md overflow-hidden rounded-xl border border-slate-700 bg-slate-800 p-6 text-slate-200 shadow-2xl transition-all">
+    
+    <!-- ヘッダー -->
+    <div class="flex items-center gap-3 pb-3 border-b border-slate-700">
+      <span class="text-2xl">⚠️</span>
+      <h2 class="text-xl font-bold text-slate-100">ご使用上の注意</h2>
+    </div>
 
+    <!-- 本文 -->
+    <div class="py-4 text-sm leading-relaxed text-slate-300">
+      <p>本アプリ（周波数ピント）は、任意の周波数や波形の音を直接生成するツールです。</p>
+      <ul class="mt-3 list-disc pl-5 space-y-2">
+        <li><strong class="text-red-400 font-semibold">耳に痛みや違和感、異変を感じた場合は、直ちに音量を下げるか使用を中止してください。</strong></li>
+        <li>特に高周波（10kHz以上）や大音量での長時間使用は、聴覚に悪影響を与える恐れがあります。</li>
+        <li>イヤホンやヘッドホンをご使用の際は、最初は小さめの音量からお試しください。</li>
+      </ul>
+    </div>
+
+    <!-- フッター（ボタン） -->
+    <div class="pt-3 text-right">
+      <button id="acceptWarningBtn" class="rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-sky-500 active:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-400">
+        理解して始める
+      </button>
+    </div>
+
+  </div>
+</div>
 <script>
 // --- 本格仕様の Fetch API による i18n 処理 ---
 let trans = {}; // グローバルな翻訳オブジェクト
